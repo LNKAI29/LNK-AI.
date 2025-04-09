@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to LNK Ai</title>
+    <style>
+        body {
+            background: linear-gradient(to right, #000428, #004e92);
+            color: white;
+            font-family: Arial, sans-serif;
+            text-align: center;
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+        }
+        .stars {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        .star {
+            position: absolute;
+            width: 3px;
+            height: 3px;
+            background: white;
+            border-radius: 50%;
+            animation: blink 1.5s infinite alternate;
+        }
+        @keyframes blink {
+            0% { opacity: 0.3; }
+            100% { opacity: 1; }
+        }
+        .welcome-screen {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            animation: fadeIn 2s;
+        }
+        .input-box {
+            background: #ffffff;
+            padding: 10px;
+            margin: 10px;
+            border-radius: 15px;
+            border: none;
+            width: 250px;
+            font-size: 16px;
+            max-width: 90%;
+        }
+        .chat-container {
+            display: none;
+            width: 90%;
+            margin: auto;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0, 153, 255, 0.5);
+        }
+        #chat-box {
+            height: 300px;
+            overflow-y: auto;
+            padding: 10px;
+            border-bottom: 2px solid white;
+            margin-bottom: 10px;
+            text-align: left;
+        }
+        .message {
+            display: block;
+            padding: 10px 15px;
+            border-radius: 15px;
+            margin: 5px;
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+        .user-message {
+            background: linear-gradient(to right, #4facfe, #00f2fe);
+            align-self: flex-end;
+            color: black;
+            text-align: right;
+        }
+        .ai-message {
+            background: rgba(255, 255, 255, 0.2);
+            align-self: flex-start;
+            text-align: left;
+        }
+        button {
+            background: #004e92;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            margin: 5px;
+            cursor: pointer;
+            border-radius: 5px;
+            font-size: 16px;
+            max-width: 90%;
+        }
+        @media (max-width: 600px) {
+            .chat-container {
+                width: 100%;
+                padding: 10px;
+            }
+            .input-box, button {
+                width: 100%;
+                font-size: 18px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="stars" id="stars"></div>
+    <div class="welcome-screen" id="welcome-screen">
+        <h1>Welcome to LNK Ai</h1>
+        <p>What's Your Name?</p>
+        <input type="text" id="name-input" class="input-box" placeholder="Enter your name...">
+        <button onclick="startChat()">Start Chat</button>
+    </div>
+    
+    <div class="chat-container" id="chat-container">
+        <h1>LNK Ai Chat</h1>
+        <div id="chat-box"></div>
+        <input type="text" id="user-input" class="input-box" placeholder="Type your message...">
+        <button onclick="sendMessage()">Send</button>
+    </div>
+
+    <script>
+        let userName = "";
+        function startChat() {
+            let nameInput = document.getElementById("name-input").value.trim();
+            if (!nameInput) return;
+            userName = nameInput;
+            document.getElementById("welcome-screen").style.display = "none";
+            document.getElementById("chat-container").style.display = "block";
+            document.getElementById("chat-box").innerHTML = `<p class='message ai-message'><strong>LNK Ai:</strong> Welcome, <b>${userName}</b>! How can I assist you today?</p>`;
+        }
+
+        async function sendMessage() {
+            let inputField = document.getElementById("user-input");
+            let userMessage = inputField.value.trim();
+            if (!userMessage) return;
+
+            let chatBox = document.getElementById("chat-box");
+            chatBox.innerHTML += `<p class='message user-message'><strong>${userName}:</strong> ${userMessage}</p>`;
+            inputField.value = "";
+
+            // Sending message to AI
+            let loadingText = "<p><i>Thinking...</i></p>";
+            chatBox.innerHTML += loadingText;
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            try {
+                let response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=AIzaSyD24M2JZ-5VEl37QkkxOH90scykBKzG-wM", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: userMessage }] }], 
+                        generationConfig: { temperature: 0.7, maxOutputTokens: 500 }
+                    })
+                });
+
+                let data = await response.json();
+                let aiResponse = data?.candidates?.[0]?.content?.parts?.[0]?.text || "Sorry, I couldn't understand that.";
+                aiResponse = aiResponse.replace(/\*\*(.*?)\*\*/g, "<b>$1</b>")
+                                      .replace(/\*(.*?)\*/g, "<i>$1</i>")
+                                      .replace(/__(.*?)__/g, "<u>$1</u>");
+
+                chatBox.innerHTML = chatBox.innerHTML.replace(loadingText, "");
+                chatBox.innerHTML += `<p class='message ai-message'><strong>LNK Ai:</strong> ${aiResponse}</p>`;
+                chatBox.scrollTop = chatBox.scrollHeight;
+            } catch (error) {
+                chatBox.innerHTML = chatBox.innerHTML.replace(loadingText, "");
+                chatBox.innerHTML += `<p class='message ai-message'><strong>Error:</strong> Unable to contact AI.</p>`;
+            }
+        }
+
+        function createStars() {
+            const container = document.getElementById("stars");
+            for (let i = 0; i < 50; i++) {
+                let star = document.createElement("div");
+                star.classList.add("star");
+                star.style.left = Math.random() * 100 + "vw";
+                star.style.top = Math.random() * 100 + "vh";
+                star.style.animationDuration = Math.random() * 2 + 1 + "s";
+                container.appendChild(star);
+            }
+        }
+        createStars();
+    </script>
+</body>
+</html>
